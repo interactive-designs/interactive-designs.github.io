@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Designs</title>
+  <style>
+    :root {
+      font-size: 16px;
+    }
+    * {
+      margin:0;
+      padding: 0;
+    }
+    body {
+      width:100vw;
+      height:100vh;
+      margin: 0;
+      display:grid;
+      place-items: center;
+      place-content: center;
+      background: linear-gradient(
+        45deg,
+        hsl(0,50%,40%),
+        hsl(300,50%,40%)
+      );
+      color:white;
+    }
+    button {
+      border:none;
+      padding:2vh 3vw;
+      border-radius: 10px;
+      font-weight: bold;
+      background:hsla(0,0%,30%,0.7);
+      color:white;
+      box-shadow: 0 2px 2px black;
+    }
+    #main {
+      display: grid;
+      place-items: center;
+      gap:4vh;
+    }
+
+    #board {
+      width:90vw;
+      height:90vw;
+      display: grid;
+      background: #555;
+      grid-template-rows: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
+      color:white;
+      gap:1vmin;
+      padding:1vmin;
+      border-radius: 10px;
+    }
+    .block {
+      display: grid;
+      place-content: center;
+      background: #222;
+      border-radius: 10px;
+    }
+
+    .block[data-state="1"]::before {
+      content:"X";
+      font-size: 2rem;
+    }
+    .block[data-state="2"]::before {
+      content:"O";
+      font-size: 2rem;
+    }
+
+    #turn {
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+
+    #turn::before{
+      content:"Current Player: "
+    }
+    #turn[data-state="1"]::after {
+      content:"X";
+    }
+    #turn[data-state="2"]::after{
+      content:"O";
+    }
+
+    .block.highlight {
+      box-shadow: 0 0 5px gold;
+    }
+
+    .block.won {
+      color:hsl(120, 50%, 50%);
+    }
+  </style>
+    <script>
+      class Game {
+        resetBoard (){
+          this.grid = [0,0,0,0,0,0,0,0,0];
+          this.won = false;
+          this.boardFinished = false;
+          this.blocks.forEach(e=>{
+            e.classList.remove("won");
+          })
+          this.setBoard();
+        }
+        setBoard (){
+          this.grid.forEach((block,index)=>{
+            this.blocks[index].dataset.state = block;
+            //this.blocks[index].innerText = block;
+          })
+        }
+        selectBlock (e) {
+          if(!e.target.classList.contains("block")){return false}
+          document.querySelectorAll(".highlight").forEach(e=>{
+            e.classList.remove("highlight");
+          },false)
+          e.target.classList.add("highlight");
+          return true;
+        }
+        setBlock(e){
+          if(!e.target.classList.contains("block")){return false}
+          if(e.target.classList.contains("highlight") && e.target.dataset.state == "0"){
+            this.grid[e.target.dataset.index] = this.currentPlayer + 1;
+            this.setBoard();
+            return true;
+          }
+          return false;
+        }
+  
+        clickHandler(e){
+          if(this.won){
+            return false;
+          }
+          let handler = this.setBlock(e);
+          if(handler){
+            this.setPlayer((this.currentPlayer + 1)%2);
+            let getState = this.analyseBoard(this.grid);
+            if(getState.won){
+              getState.indexes.forEach(i=>{
+                this.blocks[i].classList.add("won");
+                this.won = true;
+              })
+            } else if(getState.boardFinished) {
+              this.boardFinished = true;
+            }
+          } else {
+            handler = this.selectBlock(e);
+          }
+        }
+  
+        setPlayer(player){
+          this.currentPlayer = player;
+          this.turn.dataset.state = player + 1;
+          return player;
+        }
+        
+        analyseBoard(grid){
+          //columns
+          for(let i=0; i<3; i++){
+            let won = (grid[i] != 0) && (grid[i]== grid[i+3]) && (grid[i] == grid[i+6]);
+            if(won){
+              return {won:true, index:i, type:"col",indexes:[i,i+3,i+6]};
+            }
+          }
+          //rows
+          for(let i=0; i<3; i++){
+            let index = i*3;
+            let won = (grid[index] != 0) && (grid[index] == grid[index+1]) && (grid[index] == grid[index+2]);
+            if(won){
+              return {won:true, index:index, type:"col",indexes:[index,index+1,index+2]}
+            }
+          }
+  
+          //diagonal-left
+          let won = (grid[0] != 0) && (grid[0] == grid[4]) && (grid[0] == grid[8]);
+          if(won){
+            return {won:true, index:0, type:"diag-left",indexes:[0,4,8]}
+          }
+  
+          //diagonal-right
+          won = (grid[2] != 0) && (grid[2] == grid[4]) && (grid[2] == grid[6]);
+          if(won){
+            return {won:true, index:2, type:"diag-right",indexes:[2,4,6]}
+          }
+          
+          let boardFinished = grid.reduce((a,b)=>{
+            return b*a;
+          }) != 0;
+          return {won:false,boardFinished:boardFinished}
+        }
+        constructor(){
+          this.board = document.querySelector("#board");
+          this.won = false; this.boardFinished = false;
+          this.turn = document.querySelector("#turn");
+          this.blocks = Array.from(this.board.querySelectorAll(".block"));
+          this.blocks.forEach((block,index)=>{
+            block.dataset.index = index;
+          })
+          this.grid = [0,0,0,0,0,0,0,0,0];
+          this.currentPlayer = Math.round(Math.random());
+          this.setPlayer(this.currentPlayer);
+          this.board.addEventListener("click",this.clickHandler.bind(this),false);
+          document.querySelector("#reset").addEventListener("click",e=>{
+            let confirmation = this.won || this.boardFinished || confirm("are you sure you want to reset?");
+            if(confirmation){
+              this.resetBoard();
+            }
+          })
+        }
+      }
+      window.onload = function(){
+        game = new Game();
+        game.setBoard();
+      }
+      
+    </script>
+</head>
+<body>
+  <div id="main">
+    <div id="turn"></div>
+    <div id="board">
+      <div class="block"></div>
+      <div class="block"></div>
+      <div class="block"></div>
+      <div class="block"></div>
+      <div class="block"></div>
+      <div class="block"></div>
+      <div class="block"></div>
+      <div class="block"></div>
+      <div class="block"></div>
+    </div>
+    <div id="settings">
+      <button id="reset">RESET</button>
+    </div>
+  </div>
+
+</body>
+</html>
