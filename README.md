@@ -1,2 +1,1 @@
-# interactive-designs.github.io
-interactive product designs
+This is a test, for cybersec research! Please contact charitonos [at] pm [dot] me for info or takedown requests. Thank you!
